@@ -15,7 +15,6 @@ class StoreSerializer(serializers.ModelSerializer):
     class Meta:
         model = Store
         fields = ['id', 'name']
-        read_only_fields = ['id']
 
 
 class ProductSerializer(serializers.ModelSerializer):
@@ -26,7 +25,6 @@ class ProductSerializer(serializers.ModelSerializer):
 
 class ReceiptSerializer(serializers.ModelSerializer):
     products = ProductSerializer(many=True)
-    # store = serializers.PrimaryKeyRelatedField(queryset=Store.objects.all())
     store = StoreSerializer()
 
     class Meta:
@@ -36,10 +34,14 @@ class ReceiptSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         products_data = validated_data.pop('products')
+        store_name = validated_data.pop('store')
+        name = store_name.get('name')
 
         try:
             with transaction.atomic():
-                receipt = Receipt.objects.create(**validated_data)
+                store, _ = Store.objects.get_or_create(name=name)
+                # validated_data['store'] = store
+                receipt = Receipt.objects.create(store=store, **validated_data)
                 for product_data in products_data:
                     Product.objects.create(receipt=receipt, **product_data)
                 return receipt
